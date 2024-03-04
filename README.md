@@ -1,0 +1,1 @@
+# KRY -- projekt 2 -- MAC za použití SHA-256 & Length extension attack
