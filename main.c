@@ -5,7 +5,7 @@
 
 
 #define CHUNK_SIZE 512
-#define BIT_LEN_RESERVE 8
+#define RESERVED_BYTE_COUNT 8
 
 
 const uint32_t k[64] = {
@@ -20,7 +20,54 @@ const uint32_t k[64] = {
 };
 
 
-void sha256(uint8_t msg, uint32_t hash) {
+uint8_t *extend_buffer(uint8_t *buffer, uint64_t buffer_size, uint64_t extension_size) {
+    uint8_t *new_buffer;
+
+    if ((new_buffer = realloc(buffer, buffer_size + extension_size)) == NULL) {
+        free(buffer);
+        fprintf(stderr, "Internal memory error\n");
+    }
+
+    return new_buffer;
+}
+
+
+uint8_t *load_and_pad_msg(FILE *input_stream) {
+    uint8_t *buffer = NULL;
+    uint64_t buffer_content_len = 0, buffer_size = 0;
+
+    do {
+        if ((buffer = extend_buffer(buffer, buffer_size, CHUNK_SIZE)) == NULL) {
+            return NULL;
+        }
+
+        buffer_content_len += fread(buffer + buffer_content_len, 1, CHUNK_SIZE, input_stream);
+        buffer_size += CHUNK_SIZE;
+    } while (buffer_content_len == buffer_size);
+
+    if (ferror(input_stream)) {
+        free(buffer);
+        fprintf(stderr, "Input reading error\n");
+        return NULL;
+    }
+
+    if (buffer_content_len >= buffer_size - RESERVED_BYTE_COUNT) {
+        if ((buffer = extend_buffer(buffer, buffer_size, CHUNK_SIZE)) == NULL) {
+            return NULL;
+        }
+    }
+
+    buffer[buffer_content_len] = 1<<7;
+    memset(buffer + buffer_content_len, 0, buffer_size - buffer_content_len - RESERVED_BYTE_COUNT);
+
+    uint64_t buffer_content_bit_len = buffer_content_len * 8;
+    memcpy(buffer + buffer_size - RESERVED_BYTE_COUNT, &buffer_content_bit_len, RESERVED_BYTE_COUNT);
+
+    return buffer;
+}
+
+
+void sha256(uint8_t *msg, uint32_t *hash) {
     
 }
 
@@ -31,42 +78,11 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    uint8_t *tmp, *buffer = NULL;
-    uint64_t buffer_content_len = 0, buffer_size = 0;
+    uint8_t *padded_msg = load_and_pad_msg(stdin);
 
-    do {
-        if ((tmp = realloc(buffer, buffer_size + CHUNK_SIZE)) == NULL) {
-            free(buffer);
-            printf("Internal memory error\n");
-            return EXIT_FAILURE;
-        }
-
-        buffer = tmp;
-        buffer_content_len += fread(buffer + buffer_content_len, 1, CHUNK_SIZE, stdin);
-        buffer_size += CHUNK_SIZE;
-    } while (buffer_content_len == buffer_size);
-
-    if (ferror(stdin)) {
-        free(buffer);
-        printf("Input reading error\n");
+    if (padded_msg == NULL) {
         return EXIT_FAILURE;
     }
-
-    if (buffer_content_len >= buffer_size - BIT_LEN_RESERVE) {
-        if ((tmp = realloc(buffer, buffer_size + CHUNK_SIZE)) == NULL) {
-            free(buffer);
-            printf("Internal memory error\n");
-            return EXIT_FAILURE;
-        }
-
-        buffer = tmp;
-    }
-
-    buffer[buffer_content_len] = 1<<7;
-    memset(buffer + buffer_content_len, 0, buffer_size - buffer_content_len - BIT_LEN_RESERVE);
-
-    uint64_t buffer_content_bit_len = buffer_content_len * 8;
-    memcpy(buffer + buffer_content_len - BIT_LEN_RESERVE, &buffer_content_bit_len, BIT_LEN_RESERVE);
 
     return EXIT_SUCCESS;
 }
