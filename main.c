@@ -6,9 +6,14 @@
 #include <errno.h>
 #include <getopt.h>
 
+#define BLOCK_SIZE 64
 
 #define CHUNK_SIZE 64
-#define RESERVED_BYTE_COUNT 8
+#define RESERVED_LEN_BYTE_COUNT 8
+
+#define CHS_LEN 64
+
+#define MSG_DELIMITER 128
 
 #define BYTE_BIT_LEN 8
 #define DWORD_BIT_LEN 32
@@ -30,10 +35,23 @@
 #define sigma_1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ SHR(x, 10))
 
 
-typedef struct padded_msg_t {
+typedef struct msg_t {
     uint8_t *buffer;
-    uint64_t msg_len, buffer_size;
-} padded_msg_t;
+    uint64_t msg_len, buffer_size, elongation;
+} msg_t;
+
+
+void init_msg(msg_t *msg) {
+    msg->buffer = NULL;
+    msg->msg_len = 0;
+    msg->buffer_size = 0;
+    msg->elongation = 0;
+}
+
+
+void destruct_msg(msg_t *msg) {
+    free(msg->buffer);
+}
 
 
 void print_usage(void) {
@@ -53,6 +71,7 @@ void print_usage(void) {
     printf("Additional parameters:\n");
     printf("  -k KEY    specify the secret key for the MAC calculation (KEY expected format: ^[A-Za-z0-9]*$)\n");
     printf("  -m CHS    specify the MAC of the input message to verify it or perform the attack\n");
+    printf("            (CHS expected format: ^[A-Fa-f0-9]{%u}$)\n", CHS_LEN);
     printf("  -n NUM    specify the length of the secret key to perform the attack\n");
     printf("  -a MSG    specify the extension of the input message to perform the attack\n");
     printf("            (MSG expected format: ^[a-zA-Z0-9!#$%%&'\"()*+,-./:;<>=?@[]\\^_{}|~]*$)\n");
@@ -64,6 +83,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
     *functionality = '\0';
     *key = NULL;
     *chs = NULL;
+    uint8_t chs_len = 0;
     *msg = NULL;
     char *endptr;
     bool num_is_defined = false;
@@ -92,6 +112,22 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 *key = optarg;
                 break;
             case 'm':
+                for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
+                    if (!((*c_ptr >= 48 && *c_ptr <= 57) || (*c_ptr >= 65 && *c_ptr <= 70) || (*c_ptr >= 97 && *c_ptr <= 102))) {
+                        fprintf(stderr, "Invalid format of parameter -m: '%s' -- expected format: ^[A-Fa-f0-9]{%u}$\n", optarg, CHS_LEN);
+                        return false;
+                    }
+
+                    if(++chs_len > CHS_LEN) {
+                        break;
+                    }
+                }
+
+                if (chs_len != CHS_LEN) {
+                    fprintf(stderr, "Invalid length of parameter -m: %u -- expected format: ^[A-Fa-f0-9]{%u}$\n", chs_len, CHS_LEN);
+                    return false;
+                }
+
                 *chs = optarg;
                 break;
             case 'n':
@@ -149,57 +185,52 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
 }
 
 
-uint8_t *extend_buffer(uint8_t *buffer, uint64_t buffer_size, uint64_t extension_size) {
-    uint8_t *new_buffer;
+bool extend_msg_buffer(msg_t *msg, uint64_t extension_size) {
+    uint8_t *tmp_buffer;
 
-    if ((new_buffer = realloc(buffer, buffer_size + extension_size)) == NULL) {
-        free(buffer);
+    if ((tmp_buffer = realloc(msg->buffer, msg->buffer_size + extension_size)) == NULL) {
+        free(msg->buffer);
         fprintf(stderr, "Internal memory error\n");
+        return false;
     }
 
-    return new_buffer;
+    msg->buffer_size += extension_size;
+    msg->buffer = tmp_buffer;
+    return true;
 }
 
 
-bool load_and_pad_msg(FILE *input_stream, padded_msg_t *msg) {
-    msg->buffer = NULL;
-    msg->msg_len = 0;
-    msg->buffer_size = 0;
+bool extend_msg(msg_t *msg, char *extension) {
+    size_t extension_len = strlen(extension);
 
-    do {
-        if ((msg->buffer = extend_buffer(msg->buffer, msg->buffer_size, CHUNK_SIZE)) == NULL) {
+    while(msg->buffer_size < extension_len) {
+        if (!extend_msg_buffer(msg, CHUNK_SIZE)) {
+            return false;
+        }
+    }
+
+    memcpy(msg->buffer + msg->msg_len, extension, extension_len);
+    msg->msg_len += extension_len;
+    return true;
+}
+
+
+bool load_and_pad_msg(FILE *input_stream, msg_t *msg) {
+    msg->msg_len += fread(msg->buffer + msg->msg_len, 1, msg->buffer_size - msg->msg_len, input_stream);
+
+    while (msg->msg_len == msg->buffer_size) {
+        if (!extend_msg_buffer(msg, CHUNK_SIZE)) {
             return false;
         }
 
         msg->msg_len += fread(msg->buffer + msg->msg_len, 1, CHUNK_SIZE, input_stream);
-        msg->buffer_size += CHUNK_SIZE;
-    } while (msg->msg_len == msg->buffer_size);
+    }
 
     if (ferror(input_stream)) {
         free(msg->buffer);
         fprintf(stderr, "Input reading error\n");
         return false;
     }
-
-    if (msg->msg_len >= msg->buffer_size - RESERVED_BYTE_COUNT) {
-        if ((msg->buffer = extend_buffer(msg->buffer, msg->buffer_size, CHUNK_SIZE)) == NULL) {
-            return false;
-        }
-    }
-
-    msg->buffer[msg->msg_len] = 128;    // dec(128) = bin(10000000)
-    memset(msg->buffer + msg->msg_len + 1, 0, msg->buffer_size - msg->msg_len - RESERVED_BYTE_COUNT - 1);
-
-    uint64_t msg_bit_len = msg->msg_len * BYTE_BIT_LEN;
-
-    msg->buffer[msg->buffer_size - 1] = msg_bit_len;
-    msg->buffer[msg->buffer_size - 2] = msg_bit_len >> 8;
-    msg->buffer[msg->buffer_size - 3] = msg_bit_len >> 16;
-    msg->buffer[msg->buffer_size - 4] = msg_bit_len >> 24;
-    msg->buffer[msg->buffer_size - 5] = msg_bit_len >> 32;
-    msg->buffer[msg->buffer_size - 6] = msg_bit_len >> 40;
-    msg->buffer[msg->buffer_size - 7] = msg_bit_len >> 48;
-    msg->buffer[msg->buffer_size - 8] = msg_bit_len >> 56;
 
     return true;
 }
@@ -217,36 +248,80 @@ const uint32_t K[64] = {
 };
 
 
-void sha256(padded_msg_t *msg, uint32_t *hash) {
-    hash[0] = 0x6a09e667;
-    hash[1] = 0xbb67ae85;
-    hash[2] = 0x3c6ef372;
-    hash[3] = 0xa54ff53a;
-    hash[4] = 0x510e527f;
-    hash[5] = 0x9b05688c;
-    hash[6] = 0x1f83d9ab;
-    hash[7] = 0x5be0cd19;
+bool get_next_block(msg_t *msg, uint8_t *msg_block, uint64_t offset) {
+    if (offset + BLOCK_SIZE <= msg->msg_len) {
+        memcpy(msg_block, msg->buffer + offset, BLOCK_SIZE);
+        return true;
+    }
 
+    memset(msg_block, 0, BLOCK_SIZE);
+
+    if (offset < msg->msg_len) {
+        memcpy(msg_block, msg->buffer + offset, msg->msg_len - offset);
+        msg_block[msg->msg_len - offset] = MSG_DELIMITER;
+    }
+
+    if (offset + BLOCK_SIZE <= msg->msg_len + RESERVED_LEN_BYTE_COUNT) {
+        return true;
+    }
+
+    uint64_t msg_bit_len = (msg->msg_len + msg->elongation) * BYTE_BIT_LEN;
+
+    msg_block[BLOCK_SIZE - 1] = msg_bit_len;
+    msg_block[BLOCK_SIZE - 2] = msg_bit_len >> 8;
+    msg_block[BLOCK_SIZE - 3] = msg_bit_len >> 16;
+    msg_block[BLOCK_SIZE - 4] = msg_bit_len >> 24;
+    msg_block[BLOCK_SIZE - 5] = msg_bit_len >> 32;
+    msg_block[BLOCK_SIZE - 6] = msg_bit_len >> 40;
+    msg_block[BLOCK_SIZE - 7] = msg_bit_len >> 48;
+    msg_block[BLOCK_SIZE - 8] = msg_bit_len >> 56;
+
+    return false;
+}
+
+
+void sha256(msg_t *msg, char *result_hash, char *init_hash) {
+    uint32_t H_0, H_1, H_2, H_3, H_4, H_5, H_6, H_7;
+
+    H_0 = 0x6a09e667;
+    H_1 = 0xbb67ae85;
+    H_2 = 0x3c6ef372;
+    H_3 = 0xa54ff53a;
+    H_4 = 0x510e527f;
+    H_5 = 0x9b05688c;
+    H_6 = 0x1f83d9ab;
+    H_7 = 0x5be0cd19;
+
+    if (init_hash != NULL) {
+        sscanf(init_hash, "%08x%08x%08x%08x%08x%08x%08x%08x", &H_0, &H_1, &H_2, &H_3, &H_4, &H_5, &H_6, &H_7);
+    }
+
+    uint8_t msg_block[BLOCK_SIZE];
     uint32_t W[64];
     uint32_t a, b, c, d, e, f, g, h, T_1, T_2;
+    bool process_next_block = true;
+    uint64_t block_offset = 0;
 
-    for (uint64_t msg_block_idx = 0; msg_block_idx < msg->buffer_size;  msg_block_idx += CHUNK_SIZE) {
+    while (process_next_block) {
+        process_next_block = get_next_block(msg, msg_block, block_offset);
+        block_offset += BLOCK_SIZE;
+
         for (uint8_t i = 0, j = 0; i < 16; i++, j += 4) {
-            W[i] = (msg->buffer[j] << 24) | (msg->buffer[j + 1] << 16) | (msg->buffer[j + 2] << 8) | msg->buffer[j + 3];
+            W[i] = (msg_block[j] << 24) | (msg_block[j + 1] << 16) | (msg_block[j + 2] << 8) | msg_block[j + 3];
         }
 
         for (uint8_t i = 16; i < 64; i++) {
             W[i] = sigma_1(W[i - 2]) + W[i - 7] + sigma_0(W[i - 15]) + W[i - 16];
         }
 
-        a = hash[0];
-        b = hash[1];
-        c = hash[2];
-        d = hash[3];
-        e = hash[4];
-        f = hash[5];
-        g = hash[6];
-        h = hash[7];
+        a = H_0;
+        b = H_1;
+        c = H_2;
+        d = H_3;
+        e = H_4;
+        f = H_5;
+        g = H_6;
+        h = H_7;
 
         for (uint8_t i = 0; i < 64; i++) {
             T_1 = h + Sigma_1(e) + Ch(e, f, g) + K[i] + W[i];
@@ -261,15 +336,17 @@ void sha256(padded_msg_t *msg, uint32_t *hash) {
             a = T_1 + T_2;
         }
 
-        hash[0] += a;
-        hash[1] += b;
-        hash[2] += c;
-        hash[3] += d;
-        hash[4] += e;
-        hash[5] += f;
-        hash[6] += g;
-        hash[7] += h;
+        H_0 += a;
+        H_1 += b;
+        H_2 += c;
+        H_3 += d;
+        H_4 += e;
+        H_5 += f;
+        H_6 += g;
+        H_7 += h;
     }
+
+    sprintf(result_hash, "%08x%08x%08x%08x%08x%08x%08x%08x", H_0, H_1, H_2, H_3, H_4, H_5, H_6, H_7);
 }
 
 
@@ -286,31 +363,40 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    padded_msg_t padded_msg;
+    msg_t padded_msg;
+    init_msg(&padded_msg);
+
+    if (functionality == 's' || functionality == 'v') {
+        if (!extend_msg(&padded_msg, key)) {
+            return EXIT_FAILURE;
+        }
+    }
 
     if (!load_and_pad_msg(stdin, &padded_msg)) {
         return EXIT_FAILURE;
     }
 
-    uint32_t hash[8];
+    char hash[65];
 
-    if (functionality == 'c') {
-        sha256(&padded_msg, hash);
-        for (uint8_t i = 0; i < 8; i++) {
-            printf("%08x", hash[i]);
+    if (functionality == 'c' || functionality == 's') {
+        sha256(&padded_msg, hash, NULL);
+        printf("%s\n", hash);
+    }
+    else if (functionality == 'v') {    
+        sha256(&padded_msg, hash, NULL);
+
+        if (strcmp(chs, hash) == 0) {
+            return EXIT_VALID_MAC;
         }
-        printf("\n");
-    }
-    else if (functionality == 's') {
-        // TODO
-    }
-    else if (functionality == 'v') {
-        // TODO
+
+        return EXIT_INVALID_MAC;
     }
     else {
-        // TODO
+        msg_t new_msg = {msg, strlen(msg), 0, 64};
+        sha256(&new_msg, hash, chs);
+        printf("%s\n", hash);
     }
 
-    free(padded_msg.buffer);
+    destruct_msg(&padded_msg);
     return EXIT_SUCCESS;
 }
