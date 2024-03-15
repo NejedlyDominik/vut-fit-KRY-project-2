@@ -1,6 +1,8 @@
 CC=gcc
 CFLAGS=-std=c17 -Wall -Wextra -pedantic -O3 #-fsanitize=address -fsanitize=leak #-lgmp -lgmpxx -I /opt/homebrew/include -L /opt/homebrew/lib
-SRC=main.c
+SRC_FILES=main.c args.c input.c sha256.c
+HEADER_FILES=args.h input.h sha256.h
+OBJECT_FILES=main.o args.o input.o sha256.o
 BIN=kry
 PACK=213486.zip
 
@@ -8,13 +10,16 @@ PACK=213486.zip
 
 all: $(BIN)
 
-$(BIN): $(SRC)
-	$(CC) $(CFLAGS) $^ -o $@
+$(BIN): $(HEADER_FILES) $(OBJECT_FILES)
+	$(CC) $(CFLAGS) $(OBJECT_FILES) -o $@
+
+$(OBJECT_FILES): %.o: %.c
+	$(CC) -c $(CFLAGS) $< -o $@
 
 pack: $(PACK)
 
-$(PACK): $(SRC) Makefile README.md 
+$(PACK): $(SRC_FILES) $(HEADER_FILES) Makefile README.md 
 	zip -r $@ $^
 
 clean:
-	rm -f $(BIN) $(PACK)
+	rm -f $(OBJECT_FILES) $(BIN) $(PACK)
