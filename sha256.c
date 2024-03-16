@@ -1,3 +1,13 @@
+/**
+ * VUT FIT KRY - Project 2 - MAC using SHA-256 & Length extension attack
+ *
+ * @author Dominik Nejedlý (xnejed09)
+ * @date 16. 3. 2024
+ * 
+ * @brief SHA-256 module
+ */
+
+
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
@@ -24,6 +34,9 @@
 #define sigma_1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ SHR(x, 10))
 
 
+/**
+ * @struct Message processing state internal representation
+ */
 typedef struct msg_t {
     const uint8_t *data;
     uint64_t len;
@@ -33,6 +46,14 @@ typedef struct msg_t {
 } msg_t;
 
 
+/**
+ * Initialize message processing state.
+ * 
+ * @param msg Message processing state to be initialized
+ * @param data Message data
+ * @param len Length of message data (in bytes)
+ * @param init_hash_offset The given number of already processed bytes of the message corresponding to the given SHA-256 initial hash
+ */
 void init_msg(msg_t *msg, const void *data, uint64_t len, uint64_t init_hash_offset) {
     msg->data = data;
     msg->len = len;
@@ -54,6 +75,14 @@ void uint64_to_byte_array(uint8_t *arr, uint64_t num) {
 }
 
 
+/**
+ * Get the next 512 bit block of the given message.
+ * 
+ * @param msg Message processing state of the given message
+ * @param msg_block The location to store the next padded message block
+ * 
+ * @return True if the next block of the given message is successfuly prepared, false if the whole message is already processed.
+ */
 bool get_next_block(msg_t *msg, uint8_t *msg_block) {
     if (msg->processed) {
         return false;
@@ -166,6 +195,7 @@ void sha256(const void *msg_data, uint64_t msg_len, char *result_hash, char *ini
 uint64_t get_padded_msg_len(uint64_t msg_len) {
     return (msg_len / BLOCK_SIZE + ((msg_len % BLOCK_SIZE < BLOCK_SIZE - RESERVED_LEN_BYTE_COUNT) ? 1 : 2)) * BLOCK_SIZE;
 }
+
 
 void print_padded_msg(const void *msg_data, uint64_t msg_len, uint64_t offset, char *extension) {
     const char *msg_p = msg_data;

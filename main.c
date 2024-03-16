@@ -1,3 +1,13 @@
+/**
+ * VUT FIT KRY - Project 2 - MAC using SHA-256 & Length extension attack
+ *
+ * @author Dominik Nejedlý (xnejed09)
+ * @date 16. 3. 2024
+ * 
+ * @brief Program entry point module
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +23,17 @@
 #define EXIT_INVALID_MAC 1
 
 
+/**
+ * Based on the command line arguments compute SHA-256 checksum of the input message and print,
+ * it to the standard output, compute MAC of the input message and print it to the standard output,
+ * verify the MAC for the given secret key and input message, perform the length extension attack
+ * on the given MAC and input message, or print usage of the program to the standard output.
+ * 
+ * @param argc The number of command line arguments
+ * @param argv Values of command line arguments
+ * 
+ * @return 0 in case of successful run of the program or successul MAC verification, 1 otherwise.
+ */
 int main(int argc, char *argv[]) {
     if (argc == 1) {
         print_usage();

@@ -1,3 +1,13 @@
+/**
+ * VUT FIT KRY - Project 2 - MAC using SHA-256 & Length extension attack
+ *
+ * @author Dominik Nejedlý (xnejed09)
+ * @date 16. 3. 2024
+ * 
+ * @brief Processing of the command line arguments module
+ */
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -57,6 +67,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 *functionality = opt;
                 break;
             case 'k':
+                // Check the format of secret key: ^[A-Za-z0-9]*$
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 48 && *c_ptr <= 57) || (*c_ptr >= 65 && *c_ptr <= 90) || (*c_ptr >= 97 && *c_ptr <= 122))) {
                         fprintf(stderr, "Invalid format of parameter -k: '%s' -- expected format: ^[A-Za-z0-9]*$\n", optarg);
@@ -67,6 +78,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 *key = optarg;
                 break;
             case 'm':
+                // Check the format of MAC (checksum): ^[A-Fa-f0-9]{64}$
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 48 && *c_ptr <= 57) || (*c_ptr >= 65 && *c_ptr <= 70) || (*c_ptr >= 97 && *c_ptr <= 102))) {
                         fprintf(stderr, "Invalid format of parameter -m: '%s' -- expected format: ^[A-Fa-f0-9]{%u}$\n", optarg, CHS_LEN);
@@ -101,6 +113,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 num_is_defined = true;
                 break;
             case 'a':
+                // Check the format of the input message extension: ^[a-zA-Z0-9!#$%&'"()*+,-./:;<>=?@[]\^_{}|~]*$)\n"
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 33 && *c_ptr <= 95) || (*c_ptr >= 97 && *c_ptr <= 126))) {
                         fprintf(stderr, "Invalid format of parameter -a: '%s' -- expected format: ^[a-zA-Z0-9!#$%%&'\"()*+,-./:;<>=?@[]\\^_{}|~]*$\n", optarg);

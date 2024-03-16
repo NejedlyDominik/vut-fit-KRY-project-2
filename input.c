@@ -1,3 +1,13 @@
+/**
+ * VUT FIT KRY - Project 2 - MAC using SHA-256 & Length extension attack
+ *
+ * @author Dominik Nejedlý (xnejed09)
+ * @date 16. 3. 2024
+ *
+ * @brief Program input loading and manipulation module
+ */
+
+
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
@@ -21,6 +31,14 @@ void reset_container(data_container_t *container) {
 }
 
 
+/**
+ * Extend the container buffer size by the given number of bytes.
+ * 
+ * @param container The container whose buffer is to be extended
+ * @param extension_size The number of bytes by which the buffer is to be extended
+ * 
+ * @return True in case of successful buffer extension, false otherwise.
+ */
 bool extend_container_buffer(data_container_t *container, uint64_t extension_size) {
     uint8_t *tmp_buffer;
 
