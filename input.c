@@ -2,7 +2,6 @@
 #include <string.h>
 #include <stdbool.h>
 
-
 #include "input.h"
 
 
@@ -53,14 +52,17 @@ bool extend_container(data_container_t *container, char *extension) {
 
 
 bool load_input(FILE *input_stream, data_container_t *container) {
-    container->data_len += fread(container->buffer + container->data_len, 1, container->buffer_size - container->data_len, input_stream);
+    int c;
 
-    while (container->data_len == container->buffer_size) {
-        if (!extend_container_buffer(container, CHUNK_SIZE)) {
-            return false;
+    while ((c = fgetc(input_stream)) != EOF) {
+
+        if (container->data_len >= container->buffer_size) {
+            if (!extend_container_buffer(container, CHUNK_SIZE)) {
+                return false;
+            }
         }
 
-        container->data_len += fread(container->buffer + container->data_len, 1, CHUNK_SIZE, input_stream);
+        container->buffer[container->data_len++] = (uint8_t) c;
     }
 
     if (ferror(input_stream)) {

@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS=-std=c17 -Wall -Wextra -pedantic -O3 #-fsanitize=address -fsanitize=leak #-lgmp -lgmpxx -I /opt/homebrew/include -L /opt/homebrew/lib
+CFLAGS=-std=c17 -Wall -Wextra -pedantic -O3 #-fsanitize=address -fsanitize=leak
 SRC_FILES=main.c args.c input.c sha256.c
 HEADER_FILES=args.h input.h sha256.h
 OBJECT_FILES=main.o args.o input.o sha256.o

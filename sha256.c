@@ -4,6 +4,7 @@
 
 #include "sha256.h"
 
+
 #define DWORD_BIT_LEN 32
 #define BYTE_BIT_LEN 8
 
@@ -24,7 +25,7 @@
 
 
 typedef struct msg_t {
-    uint8_t *data;
+    const uint8_t *data;
     uint64_t len;
     uint64_t processed_len;
     uint64_t init_hash_offset;
@@ -32,7 +33,7 @@ typedef struct msg_t {
 } msg_t;
 
 
-void init_msg(msg_t *msg, uint8_t *data, uint64_t len, uint64_t init_hash_offset) {
+void init_msg(msg_t *msg, const void *data, uint64_t len, uint64_t init_hash_offset) {
     msg->data = data;
     msg->len = len;
     msg->processed_len = 0;
@@ -42,14 +43,14 @@ void init_msg(msg_t *msg, uint8_t *data, uint64_t len, uint64_t init_hash_offset
 
 
 void uint64_to_byte_array(uint8_t *arr, uint64_t num) {
-    arr[0] = num >> 56;
-    arr[1] = num >> 48;
-    arr[2] = num >> 40;
-    arr[3] = num >> 32;
-    arr[4] = num >> 24;
-    arr[5] = num >> 16;
-    arr[6] = num >> 8;
-    arr[7] = num;
+    arr[0] = (uint8_t) (num >> 56);
+    arr[1] = (uint8_t) (num >> 48);
+    arr[2] = (uint8_t) (num >> 40);
+    arr[3] = (uint8_t) (num >> 32);
+    arr[4] = (uint8_t) (num >> 24);
+    arr[5] = (uint8_t) (num >> 16);
+    arr[6] = (uint8_t) (num >> 8);
+    arr[7] = (uint8_t) num;
 }
 
 
@@ -80,7 +81,7 @@ bool get_next_block(msg_t *msg, uint8_t *msg_block) {
 }
 
 
-void sha256(void *msg_data, uint64_t msg_len, char *result_hash, char *init_hash, uint64_t init_hash_offset) {
+void sha256(const void *msg_data, uint64_t msg_len, char *result_hash, char *init_hash, uint64_t init_hash_offset) {
     const uint32_t K[64] = {
         0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
         0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
@@ -91,6 +92,7 @@ void sha256(void *msg_data, uint64_t msg_len, char *result_hash, char *init_hash
         0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
         0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
     };
+
     uint32_t H_0, H_1, H_2, H_3, H_4, H_5, H_6, H_7;
 
     H_0 = 0x6a09e667;
@@ -115,7 +117,10 @@ void sha256(void *msg_data, uint64_t msg_len, char *result_hash, char *init_hash
 
     while (get_next_block(&msg, msg_block)) {
         for (uint8_t i = 0, j = 0; i < 16; i++, j += 4) {
-            W[i] = (msg_block[j] << 24) | (msg_block[j + 1] << 16) | (msg_block[j + 2] << 8) | msg_block[j + 3];
+            W[i] = (uint32_t) msg_block[j] << 24 |
+                (uint32_t) msg_block[j + 1] << 16 |
+                (uint32_t) msg_block[j + 2] << 8 |
+                (uint32_t) msg_block[j + 3];
         }
 
         for (uint8_t i = 16; i < 64; i++) {
@@ -160,4 +165,34 @@ void sha256(void *msg_data, uint64_t msg_len, char *result_hash, char *init_hash
 
 uint64_t get_padded_msg_len(uint64_t msg_len) {
     return (msg_len / BLOCK_SIZE + ((msg_len % BLOCK_SIZE < BLOCK_SIZE - RESERVED_LEN_BYTE_COUNT) ? 1 : 2)) * BLOCK_SIZE;
+}
+
+void print_padded_msg(const void *msg_data, uint64_t msg_len, uint64_t offset, char *extension) {
+    const char *msg_p = msg_data;
+
+    for (uint64_t i = 0; i < msg_len; i++) {
+        printf("%c", msg_p[i]);
+    }
+
+    printf("\\x80");
+
+    uint8_t zero_byte_count = (uint8_t) (get_padded_msg_len(msg_len + offset) - msg_len - 1 - offset - RESERVED_LEN_BYTE_COUNT);
+
+    for (uint8_t i = 0; i < zero_byte_count; i++) {
+        printf("\\x00");
+    }
+
+    uint8_t msg_bit_length_byte_arr[8];
+    uint64_to_byte_array(msg_bit_length_byte_arr, (offset + msg_len) * 8);
+
+    for (uint8_t i = 0; i < 8; i++) {
+        printf("\\x%02x", msg_bit_length_byte_arr[i]);
+    }
+
+    if (extension != NULL) {
+        printf("%s\n", extension);
+    }
+    else {
+        printf("\n");
+    }
 }
