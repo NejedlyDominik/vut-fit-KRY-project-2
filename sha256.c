@@ -94,8 +94,12 @@ bool get_next_block(msg_t *msg, uint8_t *msg_block) {
     else {
         memset(msg_block, 0, BLOCK_SIZE);
 
-        if (msg->processed_len < msg->len) {
-            memcpy(msg_block, msg->data + msg->processed_len, msg->len - msg->processed_len);
+        if (msg->processed_len <= msg->len) {
+            // From standard is not completely clear if memcpy source pointer can point to one-past-last element with count set to 0
+            if (msg->processed_len < msg->len) {
+                memcpy(msg_block, msg->data + msg->processed_len, msg->len - msg->processed_len);
+            }
+
             msg_block[msg->len - msg->processed_len] = MSG_DELIMITER;
         }
 
