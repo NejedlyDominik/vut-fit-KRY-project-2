@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
         return EXIT_INVALID_MAC;
     }
     else {
-        sha256(msg, strlen(msg), hash, chs, get_padded_msg_len(input_msg.data_len));
+        sha256(msg, strlen(msg), hash, chs, get_padded_msg_len(input_msg.data_len + num));
         printf("%s\n", hash);
         print_padded_msg(input_msg.buffer, input_msg.data_len, num, msg);
     }
