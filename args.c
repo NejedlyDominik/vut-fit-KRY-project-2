@@ -22,9 +22,10 @@
 void print_usage(void) {
     printf("KRY - Project 2 - MAC using SHA-256 & Length extension attack\n\n");
     printf("Usage:\n");
-    printf("  ./kry -c|-s|-v|-e [-k KEY] [-m CHS] [-n NUM] [-a MSG]\n\n");
+    printf("  ./kry [-c|-s|-v|-e] [-k KEY] [-m CHS] [-n NUM] [-a MSG]\n\n");
     printf("Note:\n");
-    printf("  The input message is read from STDIN\n\n");
+    printf("  The input message is read from STDIN. When the program is run without command line arguments,\n");
+    printf("  it prints its usage documentation to standard output and exits with return code 1.\n\n");
     printf("Mutually exclusive options:\n");
     printf("  -c        compute SHA-256 checksum of the input message and print it to STDOUT\n");
     printf("  -s        compute MAC for the input message using SHA-256 and print it to STDOUT\n");
