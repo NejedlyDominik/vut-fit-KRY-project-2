@@ -63,6 +63,12 @@ void init_msg(msg_t *msg, const void *data, uint64_t len, uint64_t init_hash_off
 }
 
 
+/**
+ * Convert unsigned 64 bit integer to corresponding array of 8 unsigned 8 bit integers.
+ * 
+ * @param arr The location to store the resulting 8 unsigned 8 bit integers
+ * @param num The original unsigned 64 bit integer
+ */
 void uint64_to_byte_array(uint8_t *arr, uint64_t num) {
     arr[0] = (uint8_t) (num >> 56);
     arr[1] = (uint8_t) (num >> 48);

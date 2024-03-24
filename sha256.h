@@ -16,14 +16,6 @@
 
 
 /**
- * Convert unsigned 64 bit integer to corresponding array of 8 unsigned 8 bit integers.
- * 
- * @param arr The location to store the resulting 8 unsigned 8 bit integers
- * @param num The original unsigned 64 bit integer
- */
-void uint64_to_byte_array(uint8_t *arr, uint64_t num);
-
-/**
  * Compute SHA-256 of the given message.
  * 
  * @param msg_data The given message to be processed
