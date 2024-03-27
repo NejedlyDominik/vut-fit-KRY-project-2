@@ -4,7 +4,7 @@
  * @author Dominik Nejedlý (xnejed09)
  * @date 16. 3. 2024
  *
- * @brief Processing of command the line arguments interface
+ * @brief Processing of the command line arguments interface
  */
 
 

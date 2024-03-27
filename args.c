@@ -25,14 +25,14 @@ void print_usage(void) {
     printf("  ./kry [-c|-s|-v|-e] [-k KEY] [-m CHS] [-n NUM] [-a MSG]\n\n");
     printf("Note:\n");
     printf("  The input message is read from STDIN. When the program is run without command line arguments,\n");
-    printf("  it prints its usage documentation to standard output and exits with return code 1.\n\n");
+    printf("  it prints its usage documentation to the standard output and exits with return code 1.\n\n");
     printf("Mutually exclusive options:\n");
     printf("  -c        compute SHA-256 checksum of the input message and print it to STDOUT\n");
     printf("  -s        compute MAC for the input message using SHA-256 and print it to STDOUT\n");
     printf("            (must be used with parameter -k)\n");
-    printf("  -v        verifie the MAC for the given key and input message and return 0 if MAC is valid\n");
+    printf("  -v        verify the MAC for the given key and input message and return 0 if MAC is valid\n");
     printf("            or 1 otherwise (must be used with parameters -k and -m)\n");
-    printf("  -e        performs the length extension attack on the MAC and input message and print\n");
+    printf("  -e        perform the length extension attack on the MAC and input message and print\n");
     printf("            the recoputed MAC and extended message to STDOUT (must be used with parameters -m, -n and -a)\n\n");
     printf("Additional parameters:\n");
     printf("  -k KEY    specify the secret key for the MAC calculation (KEY expected format: ^[A-Za-z0-9]*$)\n");
@@ -71,7 +71,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 // Check the format of secret key: ^[A-Za-z0-9]*$
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 48 && *c_ptr <= 57) || (*c_ptr >= 65 && *c_ptr <= 90) || (*c_ptr >= 97 && *c_ptr <= 122))) {
-                        fprintf(stderr, "Invalid format of parameter -k: '%s' -- expected format: ^[A-Za-z0-9]*$\n", optarg);
+                        fprintf(stderr, "Invalid format of the parameter -k: '%s' -- expected format: ^[A-Za-z0-9]*$\n", optarg);
                         return false;
                     }
                 }
@@ -82,7 +82,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 // Check the format of MAC (checksum): ^[A-Fa-f0-9]{64}$
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 48 && *c_ptr <= 57) || (*c_ptr >= 65 && *c_ptr <= 70) || (*c_ptr >= 97 && *c_ptr <= 102))) {
-                        fprintf(stderr, "Invalid format of parameter -m: '%s' -- expected format: ^[A-Fa-f0-9]{%u}$\n", optarg, CHS_LEN);
+                        fprintf(stderr, "Invalid format of the parameter -m: '%s' -- expected format: ^[A-Fa-f0-9]{%u}$\n", optarg, CHS_LEN);
                         return false;
                     }
 
@@ -117,7 +117,7 @@ bool parse_args(int argc, char *argv[], char *functionality, char **key, char **
                 // Check the format of the input message extension: ^[a-zA-Z0-9!#$%&'"()*+,-./:;<>=?@[]\^_{}|~]*$)\n"
                 for (char *c_ptr = optarg; *c_ptr != '\0'; c_ptr++) {
                     if (!((*c_ptr >= 33 && *c_ptr <= 95) || (*c_ptr >= 97 && *c_ptr <= 126))) {
-                        fprintf(stderr, "Invalid format of parameter -a: '%s' -- expected format: ^[a-zA-Z0-9!#$%%&'\"()*+,-./:;<>=?@[]\\^_{}|~]*$\n", optarg);
+                        fprintf(stderr, "Invalid format of the parameter -a: '%s' -- expected format: ^[a-zA-Z0-9!#$%%&'\"()*+,-./:;<>=?@[]\\^_{}|~]*$\n", optarg);
                         return false;
                     }
                 }
