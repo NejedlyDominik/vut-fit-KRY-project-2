@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <ctype.h>
 
 #include "args.h"
 #include "input.h"
@@ -70,11 +71,14 @@ int main(int argc, char *argv[]) {
         sha256(input_msg.buffer, input_msg.data_len, hash, NULL, 0);
         reset_container(&input_msg);
 
-        if (strcmp(chs, hash) == 0) {
-            return EXIT_VALID_MAC;
+        // Verify hash case insesitively
+        for (uint8_t i = 0; i < 64; i++) {
+            if (tolower(chs[i]) != tolower(hash[i])) {
+                return EXIT_INVALID_MAC;
+            }
         }
 
-        return EXIT_INVALID_MAC;
+        return EXIT_VALID_MAC;
     }
     else {
         sha256(msg, strlen(msg), hash, chs, get_padded_msg_len(input_msg.data_len + num));

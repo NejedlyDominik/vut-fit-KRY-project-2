@@ -1,3 +1,4 @@
+import sys
 import string
 import random
 import HashTools
@@ -15,12 +16,12 @@ def test_hash(msg_len, msg_count, secret_key=None, verify=False):
 
         if secret_key is None:
             magic.update(bytes(rnd_str, "ascii"))
-            res = subprocess.run(["../kry", "-c"], input=rnd_str, capture_output=True, text=True)
+            res = subprocess.run(["./kry", "-c"], input=rnd_str, capture_output=True, text=True)
         else:
             magic.update(bytes(secret_key + rnd_str, "ascii"))
 
             if verify:
-                res = subprocess.run(["../kry", "-v", "-k", secret_key, "-m", magic.hexdigest()], input=rnd_str, capture_output=True, text=True)
+                res = subprocess.run(["./kry", "-v", "-k", secret_key, "-m", magic.hexdigest()], input=rnd_str, capture_output=True, text=True)
 
                 if res.returncode == 0:
                     print(i, "SUCC", "Return code: ", res.returncode, res.stderr.strip())
@@ -28,18 +29,19 @@ def test_hash(msg_len, msg_count, secret_key=None, verify=False):
                     print(i, "FAIL", "Return code: ", res.returncode, res.stderr.strip())
 
                 print("------------------")
-                return
             else:
-                res = subprocess.run(["../kry", "-s", "-k", secret_key], input=rnd_str, capture_output=True, text=True)
-            
-        if magic.hexdigest() == res.stdout.strip():
-            print(i, "SAME")
-            print("Return code:", res.returncode, res.stderr.strip())
-        else:
-            print(i, "DIFF")
-            print("ref:", magic.hexdigest())
-            print("kry:", res.stdout.strip())
-        print("------------------")
+                res = subprocess.run(["./kry", "-s", "-k", secret_key], input=rnd_str, capture_output=True, text=True)
+        
+        if not verify:
+            if magic.hexdigest() == res.stdout.strip():
+                print(i, "SAME")
+                print("Return code:", res.returncode, res.stderr.strip())
+            else:
+                print(i, "DIFF")
+                print("ref:", magic.hexdigest())
+                print("kry:", res.stdout.strip())
+                    
+            print("------------------")
 
 
 def attack(msg_len, msg_count, appendix, secret_key):
@@ -55,7 +57,7 @@ def attack(msg_len, msg_count, appendix, secret_key):
             append_data=append_data, signature=sig
             )
     
-        res = subprocess.run(["../kry", "-e", "-n", f"{len(secret_key)}", "-a", appendix, "-m", sig], input=rnd_str, capture_output=True, text=True)
+        res = subprocess.run(["./kry", "-e", "-n", f"{len(secret_key)}", "-a", appendix, "-m", sig], input=rnd_str, capture_output=True, text=True)
 
         ref_msg = str(new_data)[2:-1]
         adjust_msg = ref_msg[:msg_len + 4]
@@ -108,16 +110,33 @@ def attack(msg_len, msg_count, appendix, secret_key):
         print("------------------")
 
 if __name__ == "__main__":
+    test = 'hi'
     min_msg_len = 200
     max_msg_len = 210
     step = 1
     msg_count = 1
     key_length = 153
     appendix_len = 87
+    
+    argc = len(sys.argv)
+    
+    for i in range(1, argc):
+        if i == 1:
+            test = sys.argv[i]
+        elif i == 2:
+            min_msg_len = int(sys.argv[i])
+        elif i == 3:
+            max_msg_len = int(sys.argv[i])
+        elif i == 4:
+            step = int(sys.argv[i])
+        elif i == 5:
+            msg_count = int(sys.argv[i])
+        elif i == 6:
+            key_length = int(sys.argv[i])
+        elif i == 7:
+            appendix_len = int(sys.argv[i])
 
     appendix = next(random_strs(appendix_len, 1))
-
-    test = 'ai'
 
     if test == 'h':
         print("Hash")
